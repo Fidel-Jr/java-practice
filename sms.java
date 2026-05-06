@@ -1,10 +1,10 @@
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
-import java.awt.event.*;
 import java.io.*;
 
-public class Sms extends JFrame {
+public class SMS extends JFrame {
+
     JTextField id, name, age, dob, nationality, contact, email, department, job;
     JComboBox<String> civil;
     JRadioButton male, female;
@@ -12,13 +12,17 @@ public class Sms extends JFrame {
     DefaultTableModel model;
     String file = "employees.txt";
 
-    public Sms() {
+    public SMS() {
         setTitle("Employee Management System");
-        setSize(900, 550);
+        setSize(1000, 600);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setLayout(new BorderLayout());
 
-        JPanel form = new JPanel(new GridLayout(6, 4, 10, 10));
+        // ================= FORM PANEL (MATCH IMAGE STYLE) =================
+        JPanel form = new JPanel(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(5,5,5,5);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
 
         id = new JTextField();
         name = new JTextField();
@@ -30,7 +34,7 @@ public class Sms extends JFrame {
         department = new JTextField();
         job = new JTextField();
 
-        civil = new JComboBox<>(new String[]{"Single", "Married", "Widowed", "Separated", "Divorced"});
+        civil = new JComboBox<>(new String[]{"Single","Married","Widowed","Separated","Divorced"});
 
         male = new JRadioButton("Male");
         female = new JRadioButton("Female");
@@ -38,73 +42,154 @@ public class Sms extends JFrame {
         bg.add(male);
         bg.add(female);
 
-        form.add(new JLabel("Employee ID")); form.add(id);
-        form.add(new JLabel("Age")); form.add(age);
-        form.add(new JLabel("Gender"));
-        JPanel gPanel = new JPanel();
-        gPanel.add(male); gPanel.add(female);
-        form.add(gPanel);
+        // LEFT COLUMN
+        addField(form, gbc, 0, 0, "Employee ID", id);
+        addField(form, gbc, 0, 1, "Gender", createGenderPanel());
+        addField(form, gbc, 0, 2, "Civil Status", civil);
+        addField(form, gbc, 0, 3, "Department", department);
+        addField(form, gbc, 0, 4, "Nationality", nationality);
 
-        form.add(new JLabel("Full Name")); form.add(name);
-        form.add(new JLabel("Civil Status")); form.add(civil);
-        form.add(new JLabel("Contact Number")); form.add(contact);
-        form.add(new JLabel("Department")); form.add(department);
+        // RIGHT COLUMN
+        addField(form, gbc, 1, 0, "Age", age);
+        addField(form, gbc, 1, 1, "Full Name", name);
+        addField(form, gbc, 1, 2, "Contact Number", contact);
+        addField(form, gbc, 1, 3, "Date of Birth", dob);
+        addField(form, gbc, 1, 4, "Email", email);
+        addField(form, gbc, 1, 5, "Job Title/Position", job);
 
-        form.add(new JLabel("Date of Birth")); form.add(dob);
-        form.add(new JLabel("Nationality")); form.add(nationality);
-        form.add(new JLabel("Email")); form.add(email);
-        form.add(new JLabel("Job Title/Position")); form.add(job);
-
+        // ================= BUTTONS (REPOSITIONED AS REQUESTED) =================
         JButton add = new JButton("Add Employee");
+        JButton update = new JButton("Update Employee");
+        JButton delete = new JButton("Delete Employee");
 
-        JPanel top = new JPanel(new BorderLayout());
-        top.add(form, BorderLayout.CENTER);
-        top.add(add, BorderLayout.SOUTH);
+        JPanel btnPanel = new JPanel(new GridLayout(3,1,5,5));
+        btnPanel.add(add);       // under nationality
+        btnPanel.add(update);    // under email
+        btnPanel.add(delete);    // under job title
 
-        add(top, BorderLayout.NORTH);
+        gbc.gridx = 0;
+        gbc.gridy = 6;
+        gbc.gridwidth = 2;
+        form.add(btnPanel, gbc);
 
+        // ================= TABLE =================
         model = new DefaultTableModel(new String[]{
-                "Employee ID","Full Name","Birth","Age","Civil Status","Nationality","Gender",
-                "Contact","Email","Department","Job Title"
+                "Employee ID","Full Name","Birth","Age","Civil Status",
+                "Nationality","Gender","Contact","Email","Department","Job Title"
         },0);
 
         table = new JTable(model);
         add(new JScrollPane(table), BorderLayout.CENTER);
+        add(form, BorderLayout.NORTH);
 
+        // ================= ACTIONS =================
         add.addActionListener(e -> addEmployee());
+        update.addActionListener(e -> updateEmployee());
+        delete.addActionListener(e -> deleteEmployee());
 
         loadData();
-
         setVisible(true);
     }
 
+    // helper for layout
+    void addField(JPanel panel, GridBagConstraints gbc, int x, int y, String label, Component field) {
+        gbc.gridx = x*2;
+        gbc.gridy = y;
+        panel.add(new JLabel(label), gbc);
+
+        gbc.gridx = x*2 + 1;
+        panel.add(field, gbc);
+    }
+
+    JPanel createGenderPanel() {
+        JPanel p = new JPanel();
+        p.add(male);
+        p.add(female);
+        return p;
+    }
+
+    // ================= ADD =================
     void addEmployee() {
-        String gender = male.isSelected() ? "Male" : "Female";
+        String gender = male.isSelected() ? "Male" : female.isSelected() ? "Female" : "";
 
-        String data = id.getText()+"#"+name.getText()+"#"+dob.getText()+"#"+age.getText()+"#"+
-                civil.getSelectedItem()+"#"+nationality.getText()+"#"+gender+"#"+
-                contact.getText()+"#"+email.getText()+"#"+department.getText()+"#"+job.getText();
+        String data = id.getText().trim() + "#" +
+                name.getText().trim() + "#" +
+                dob.getText().trim() + "#" +
+                age.getText().trim() + "#" +
+                civil.getSelectedItem() + "#" +
+                nationality.getText().trim() + "#" +
+                gender + "#" +
+                contact.getText().trim() + "#" +
+                email.getText().trim() + "#" +
+                department.getText().trim() + "#" +
+                job.getText().trim();
 
-        try {
-            BufferedWriter bw = new BufferedWriter(new FileWriter(file, true));
+        try (BufferedWriter bw = new BufferedWriter(new FileWriter(file,true))) {
             bw.write(data);
             bw.newLine();
-            bw.close();
-        } catch(Exception ex){}
+        } catch (Exception ex) { ex.printStackTrace(); }
 
         model.addRow(data.split("#"));
         clearFields();
     }
 
+    // ================= UPDATE =================
+    void updateEmployee() {
+        int row = table.getSelectedRow();
+        if (row == -1) {
+            JOptionPane.showMessageDialog(this,"Select a row to update.");
+            return;
+        }
+
+        String gender = male.isSelected() ? "Male" : female.isSelected() ? "Female" : "";
+
+        model.setValueAt(id.getText(), row, 0);
+        model.setValueAt(name.getText(), row, 1);
+        model.setValueAt(dob.getText(), row, 2);
+        model.setValueAt(age.getText(), row, 3);
+        model.setValueAt(civil.getSelectedItem(), row, 4);
+        model.setValueAt(nationality.getText(), row, 5);
+        model.setValueAt(gender, row, 6);
+        model.setValueAt(contact.getText(), row, 7);
+        model.setValueAt(email.getText(), row, 8);
+        model.setValueAt(department.getText(), row, 9);
+        model.setValueAt(job.getText(), row, 10);
+
+        saveAllData();
+    }
+
+    // ================= DELETE =================
+    void deleteEmployee() {
+        int row = table.getSelectedRow();
+        if (row == -1) return;
+
+        model.removeRow(row);
+        saveAllData();
+    }
+
+    // ================= SAVE =================
+    void saveAllData() {
+        try (BufferedWriter bw = new BufferedWriter(new FileWriter(file))) {
+            for (int i=0;i<model.getRowCount();i++) {
+                StringBuilder sb = new StringBuilder();
+                for (int j=0;j<model.getColumnCount();j++) {
+                    sb.append(model.getValueAt(i,j));
+                    if (j<model.getColumnCount()-1) sb.append("#");
+                }
+                bw.write(sb.toString());
+                bw.newLine();
+            }
+        } catch(Exception e){ e.printStackTrace(); }
+    }
+
+    // ================= LOAD =================
     void loadData() {
-        try {
-            BufferedReader br = new BufferedReader(new FileReader(file));
+        try (BufferedReader br = new BufferedReader(new FileReader(file))) {
             String line;
-            while((line = br.readLine()) != null) {
+            while ((line = br.readLine()) != null) {
                 model.addRow(line.split("#"));
             }
-            br.close();
-        } catch(Exception ex){}
+        } catch(Exception e){}
     }
 
     void clearFields() {
@@ -114,6 +199,6 @@ public class Sms extends JFrame {
     }
 
     public static void main(String[] args) {
-        new Sms();
+        new SMS();
     }
 }
